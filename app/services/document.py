@@ -53,12 +53,13 @@ class DocumentService:
             data, extension, content_type = await self._read_and_validate(upload)
             document_id = uuid.uuid4()
             key = f"{storage.project_prefix(project_id)}{document_id}{extension}"
-            await storage.save_file(key, data, content_type)
+            filename = upload.filename or f"{document_id}{extension}"
+            await storage.save_file(key, data, content_type, filename)
 
             document = Document(
                 id=document_id,
                 project_id=project_id,
-                filename=upload.filename or f"{document_id}{extension}",
+                filename=filename,
                 content_type=content_type,
                 size=len(data),
                 storage_path=key,
@@ -72,11 +73,12 @@ class DocumentService:
 
         old_key = document.storage_path
         new_key = str(PurePosixPath(old_key).with_suffix(extension))
-        await storage.save_file(new_key, data, content_type)
+        filename = upload.filename or document.filename
+        await storage.save_file(new_key, data, content_type, filename)
         if new_key != old_key:
             await storage.delete_file(old_key)
 
-        document.filename = upload.filename or document.filename
+        document.filename = filename
         document.content_type = content_type
         document.size = len(data)
         document.storage_path = new_key
@@ -92,4 +94,4 @@ class DocumentService:
         await storage.delete_prefix(storage.project_prefix(project_id))
 
     async def download_url(self, document: Document) -> str:
-        return await storage.presigned_download_url(document.storage_path, document.filename)
+        return await storage.presigned_download_url(document.storage_path)

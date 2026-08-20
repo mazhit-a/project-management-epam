@@ -1,16 +1,6 @@
-import pytest
 from httpx import AsyncClient
 
 from tests.helpers import auth_headers, register_and_login
-
-_MINISTACK_PRESIGNED_URL_LIMITATION = pytest.mark.xfail(
-    reason=(
-        "MiniStack rejects ResponseContentDisposition on presigned GET URLs as "
-        "'anonymous', even though the request is signed. Verified against real S3 "
-        "semantics (SigV4 supports this override); this is a MiniStack emulation gap."
-    ),
-    strict=True,
-)
 
 PDF_BYTES = b"%PDF-1.4 fake pdf content"
 DOCX_BYTES = b"PK fake docx content"
@@ -69,7 +59,6 @@ async def test_stranger_cannot_upload_or_list(client: AsyncClient):
     assert resp.status_code == 403
 
 
-@_MINISTACK_PRESIGNED_URL_LIMITATION
 async def test_download_document(client: AsyncClient, s3_client: AsyncClient):
     _, token = await register_and_login(client, "owner")
     project = await _create_project(client, token)
@@ -101,7 +90,6 @@ async def test_download_without_access_is_forbidden(client: AsyncClient):
     assert resp.status_code == 403
 
 
-@_MINISTACK_PRESIGNED_URL_LIMITATION
 async def test_update_document_replaces_content(client: AsyncClient, s3_client: AsyncClient):
     _, token = await register_and_login(client, "owner")
     project = await _create_project(client, token)

@@ -43,10 +43,14 @@ async def ensure_bucket() -> None:
             await s3.create_bucket(Bucket=settings.S3_BUCKET)
 
 
-async def save_file(key: str, data: bytes, content_type: str) -> None:
+async def save_file(key: str, data: bytes, content_type: str, filename: str) -> None:
     async with _client() as s3:
         await s3.put_object(
-            Bucket=settings.S3_BUCKET, Key=key, Body=data, ContentType=content_type
+            Bucket=settings.S3_BUCKET,
+            Key=key,
+            Body=data,
+            ContentType=content_type,
+            ContentDisposition=f'attachment; filename="{filename}"',
         )
 
 
@@ -65,15 +69,11 @@ async def delete_prefix(prefix: str) -> None:
                 await s3.delete_objects(Bucket=settings.S3_BUCKET, Delete={"Objects": objects})
 
 
-async def presigned_download_url(key: str, filename: str, expires_in: int = 300) -> str:
+async def presigned_download_url(key: str, expires_in: int = 300) -> str:
     async with _client(settings.s3_public_endpoint_url) as s3:
         url: str = await s3.generate_presigned_url(
             "get_object",
-            Params={
-                "Bucket": settings.S3_BUCKET,
-                "Key": key,
-                "ResponseContentDisposition": f'attachment; filename="{filename}"',
-            },
+            Params={"Bucket": settings.S3_BUCKET, "Key": key},
             ExpiresIn=expires_in,
         )
         return url

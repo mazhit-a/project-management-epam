@@ -14,7 +14,20 @@ router = APIRouter(tags=["documents"])
 @router.get(
     "/document/{document_id}",
     summary="Download a document, if the user has access to its project",
-    responses={403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+    description=(
+        "Redirects to a presigned, time-limited S3 URL. Clients must follow the "
+        "307 redirect (browsers and most HTTP libraries do this automatically)."
+    ),
+    status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    response_class=RedirectResponse,
+    responses={
+        307: {
+            "description": "Redirect to a presigned download URL.",
+            "headers": {"location": {"schema": {"type": "string"}}},
+        },
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
 )
 async def download_document(
     document_id: UUID,

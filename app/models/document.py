@@ -24,5 +24,5 @@ class Document(Base, TimestampMixin):
 
     project: Mapped["Project"] = relationship(back_populates="documents")
 
-    def __repr__(self) -> str:  # pragma: no cover
+    def __repr__(self) -> str:
         return f"<Document id={self.id} filename={self.filename!r}>"

@@ -34,7 +34,25 @@ class Settings(BaseSettings):
     DB_ECHO: bool = False
 
     STORAGE_DIR: str = "./storage"
-    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10 MB
+    MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024
+
+    S3_ENDPOINT_URL: str | None = None
+    S3_PUBLIC_ENDPOINT_URL: str | None = None
+    AWS_ACCESS_KEY_ID: str = "test"
+    AWS_SECRET_ACCESS_KEY: str = "test"
+    S3_BUCKET: str = "documents"
+    AWS_REGION: str = "us-east-1"
+
+    @property
+    def s3_public_endpoint_url(self) -> str | None:
+        """Endpoint external clients can actually reach for presigned URLs.
+
+        S3_ENDPOINT_URL is set to the container-internal address (e.g.
+        http://ministack:4566) for the app's own calls to the storage backend.
+        That hostname isn't resolvable outside the Docker network, so presigned
+        URLs handed to real clients need a separate, publicly reachable address.
+        """
+        return self.S3_PUBLIC_ENDPOINT_URL or self.S3_ENDPOINT_URL
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

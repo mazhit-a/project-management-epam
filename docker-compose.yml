@@ -15,16 +15,35 @@ services:
       timeout: 5s
       retries: 10
 
+  ministack:
+    image: ministackorg/ministack:latest
+    environment:
+      PERSIST_STATE: "1"
+      S3_PERSIST: "1"
+    volumes:
+      - ministack_data:/tmp/ministack-data/s3
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4566/_ministack/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "4566:4566"
+
   api:
     build: .
     env_file: .env
     environment:
       POSTGRES_HOST: db
       STORAGE_DIR: /data/storage
+      S3_ENDPOINT_URL: http://ministack:4566
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:4566
     volumes:
       - storage_data:/data/storage
     depends_on:
       db:
+        condition: service_healthy
+      ministack:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -35,3 +54,4 @@ services:
 volumes:
   pgdata:
   storage_data:
+  ministack_data:

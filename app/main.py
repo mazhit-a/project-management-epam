@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import register_exception_handlers
 from app.api.v1.router import api_router
+from app.core import storage
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.db.session import engine
@@ -14,6 +15,8 @@ from app.db.session import engine
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging()
+    if not settings.is_production:
+        await storage.ensure_bucket()
     yield
     await engine.dispose()  # close the pool cleanly on shutdown
 

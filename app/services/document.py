@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import Sequence
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from uuid import UUID
 
 from fastapi import UploadFile
@@ -52,8 +52,8 @@ class DocumentService:
         for upload in files:
             data, extension, content_type = await self._read_and_validate(upload)
             document_id = uuid.uuid4()
-            path = storage.project_directory(project_id) / f"{document_id}{extension}"
-            await storage.save_file(path, data)
+            key = f"{storage.project_prefix(project_id)}{document_id}{extension}"
+            await storage.save_file(key, data, content_type)
 
             document = Document(
                 id=document_id,
@@ -61,7 +61,7 @@ class DocumentService:
                 filename=upload.filename or f"{document_id}{extension}",
                 content_type=content_type,
                 size=len(data),
-                storage_path=str(path),
+                storage_path=key,
             )
             created.append(await self._repo.add(document))
         return created
@@ -70,23 +70,26 @@ class DocumentService:
         document = await self.get(document_id)
         data, extension, content_type = await self._read_and_validate(upload)
 
-        old_path = Path(document.storage_path)
-        new_path = old_path.with_suffix(extension)
-        await storage.save_file(new_path, data)
-        if new_path != old_path:
-            await storage.delete_file(old_path)
+        old_key = document.storage_path
+        new_key = str(PurePosixPath(old_key).with_suffix(extension))
+        await storage.save_file(new_key, data, content_type)
+        if new_key != old_key:
+            await storage.delete_file(old_key)
 
         document.filename = upload.filename or document.filename
         document.content_type = content_type
         document.size = len(data)
-        document.storage_path = str(new_path)
+        document.storage_path = new_key
         return await self._repo.save(document)
 
     async def delete(self, document_id: UUID) -> Document:
         document = await self.get(document_id)
         await self._repo.delete(document)
-        await storage.delete_file(Path(document.storage_path))
+        await storage.delete_file(document.storage_path)
         return document
 
     async def delete_project_files(self, project_id: UUID) -> None:
-        await storage.delete_directory(storage.project_directory(project_id))
+        await storage.delete_prefix(storage.project_prefix(project_id))
+
+    async def download_url(self, document: Document) -> str:
+        return await storage.presigned_download_url(document.storage_path, document.filename)

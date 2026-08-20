@@ -2,7 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, File, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 
 from app.api.deps import CurrentUserDep, DocumentServiceDep, ProjectServiceDep
 from app.schemas.common import ErrorResponse
@@ -21,14 +21,11 @@ async def download_document(
     current_user: CurrentUserDep,
     document_service: DocumentServiceDep,
     project_service: ProjectServiceDep,
-) -> FileResponse:
+) -> RedirectResponse:
     document = await document_service.get(document_id)
     await project_service.ensure_access(document.project_id, current_user.id)
-    return FileResponse(
-        path=document.storage_path,
-        filename=document.filename,
-        media_type=document.content_type,
-    )
+    url = await document_service.download_url(document)
+    return RedirectResponse(url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 
 @router.put(

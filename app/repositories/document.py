@@ -8,8 +8,6 @@ from app.models.document import Document
 
 
 class DocumentRepository:
-    """Data access only. Never raises domain/HTTP errors, never commits."""
-
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 

@@ -1,13 +1,11 @@
 import os
 from collections.abc import AsyncGenerator
-from pathlib import Path
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from app.core.config import settings
+from app.core import storage
 from app.db.session import get_db_session
 from app.main import app
 from app.models import Base
@@ -26,6 +24,11 @@ async def engine():
         await conn.run_sync(Base.metadata.create_all)
     yield engine
     await engine.dispose()
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _ensure_test_bucket() -> None:
+    await storage.ensure_bucket()
 
 
 @pytest_asyncio.fixture
@@ -59,7 +62,9 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides.clear()
 
 
-@pytest.fixture(autouse=True)
-def _isolate_document_storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Redirect uploaded documents to a throwaway per-test directory."""
-    monkeypatch.setattr(settings, "STORAGE_DIR", str(tmp_path))
+@pytest_asyncio.fixture
+async def s3_client() -> AsyncGenerator[AsyncClient, None]:
+    """A real (non-ASGI) HTTP client for following presigned download URLs,
+    since those point at MiniStack, not at the app under test."""
+    async with AsyncClient() as c:
+        yield c
